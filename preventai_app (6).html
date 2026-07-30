@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PreventAI — Diabetes Clinical Decision Support</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1C2B39">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PreventAI">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#1C2B39; --teal:#2F6F6B; --teal-dark:#204d4a; --paper:#F7F5F1;
+    --paper-raised:#FFFFFF; --amber:#C77B2C; --red:#B23A3A; --sage:#4F7A5C;
+    --line:#DCD6C9; --muted:#6b6459; --sidebar-w:236px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:14px; line-height:1.5;
+  }
+  .shell{display:flex; min-height:100vh;}
+
+  .sidebar{
+    width:var(--sidebar-w); flex-shrink:0; background:var(--ink); color:#fff;
+    display:flex; flex-direction:column; padding:22px 14px; position:sticky; top:0; height:100vh;
+  }
+  .brand{font-family:'Lora',serif; font-weight:700; font-size:19px; margin-bottom:2px; letter-spacing:-0.01em;}
+  .brand-sub{font-family:'IBM Plex Mono',monospace; font-size:10px; color:#9aa7ad; text-transform:uppercase; letter-spacing:.08em; margin-bottom:26px;}
+  .nav-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 12px; margin-bottom:2px; border-radius:6px; cursor:pointer;
+    font-size:13.5px; color:#cfd8db; font-weight:500; transition:background .12s;
+  }
+  .nav-item:hover{background:rgba(255,255,255,0.06);}
+  .nav-item.active{background:var(--teal); color:#fff;}
+  .nav-item .badge-count{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; background:rgba(255,255,255,0.14);
+    padding:1px 7px; border-radius:10px; color:#fff;
+  }
+  .nav-item.active .badge-count{background:rgba(255,255,255,0.28);}
+  .sidebar-foot{margin-top:auto; font-size:10.5px; color:#7d8990; font-family:'IBM Plex Mono',monospace; line-height:1.6; padding:10px 12px;}
+
+  .main{flex:1; padding:30px 40px 60px; max-width:1100px;}
+  .page-head{margin-bottom:24px;}
+  .page-head h1{font-family:'Lora',serif; font-size:25px; font-weight:700; margin:0 0 4px; color:var(--ink);}
+  .page-head .sub{color:var(--muted); font-size:13px;}
+
+  .panel{background:var(--paper-raised); border:1px solid var(--line); padding:22px; margin-bottom:18px;}
+  .panel h2{font-family:'Lora',serif; font-size:16px; margin:0 0 4px; font-weight:600;}
+  .panel .sub{color:var(--muted); font-size:12.5px; margin-bottom:16px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
+  .stat-card{background:var(--paper-raised); border:1px solid var(--line); border-top:3px solid var(--teal); padding:16px;}
+  .stat-card .num{font-family:'Lora',serif; font-size:30px; font-weight:700; color:var(--ink);}
+  .stat-card .lbl{font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; margin-top:2px;}
+  .stat-card.red{border-top-color:var(--red);} .stat-card.amber{border-top-color:var(--amber);} .stat-card.sage{border-top-color:var(--sage);}
+
+  .preset-row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .preset-btn{font-family:'IBM Plex Mono',monospace; font-size:11px; padding:6px 10px; border:1px solid var(--line); background:var(--paper); cursor:pointer; color:var(--ink);}
+  .preset-btn:hover{border-color:var(--teal); color:var(--teal);}
+  .group-label{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; font-family:'IBM Plex Mono',monospace; margin-bottom:6px;}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .field label{display:block; font-size:11.5px; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.03em;}
+  .field input, .field select{width:100%; padding:8px 9px; border:1px solid var(--line); background:var(--paper); font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink);}
+  .field input:focus, .field select:focus{outline:none; border-color:var(--teal);}
+
+  .actions{margin-top:18px; display:flex; gap:10px; flex-wrap:wrap;}
+  button.primary{background:var(--teal); color:#fff; border:none; padding:10px 18px; font-family:'Inter',sans-serif; font-weight:600; font-size:13px; cursor:pointer;}
+  button.primary:hover{background:var(--teal-dark);}
+  button.ghost{background:transparent; border:1px solid var(--ink); color:var(--ink); padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer;}
+  button.ghost:hover{background:var(--ink); color:#fff;}
+  button.approve{background:var(--sage); color:#fff; border:none; padding:9px 16px; font-weight:600; font-size:13px; cursor:pointer;}
+  button.reject{background:var(--red); color:#fff; border:none; padding:9px 16px; font-weight:600; font-size:13px; cursor:pointer;}
+
+  .flag{display:flex; gap:10px; align-items:flex-start; padding:11px 13px; margin-bottom:12px; border-left:4px solid var(--muted); background:#f1efe9; font-size:13px;}
+  .flag.warn{border-color:var(--amber); background:#fbf1e3;} .flag.stop{border-color:var(--red); background:#fbeceb;} .flag.ok{border-color:var(--sage); background:#edf3ee;}
+
+  .badge{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:11.5px; padding:4px 11px; text-transform:uppercase; letter-spacing:.03em;}
+  .badge.low{background:#e3ede6; color:var(--sage);} .badge.mod{background:#f5e6d3; color:var(--amber);}
+  .badge.high{background:#f3dcda; color:var(--red);} .badge.oos{background:#e3e0d8; color:var(--muted);}
+  .badge.pending{background:#e7e2f5; color:#5b4b8a;}
+
+  .prov{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted); border:1px dashed var(--line); padding:9px 11px; margin:12px 0; background:#fbfaf7;}
+  .data-used{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0;}
+  .data-used div{background:var(--paper); border:1px solid var(--line); padding:7px 9px; font-size:11.5px;}
+  .data-used div span{display:block; font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink); margin-top:2px;}
+
+  textarea{width:100%; min-height:80px; padding:9px; border:1px solid var(--line); font-family:'Inter',sans-serif; font-size:13px; background:var(--paper); resize:vertical;}
+  .msg-approved{padding:14px; border:1px solid var(--sage); background:#edf3ee; font-size:13px; line-height:1.6;}
+
+  table.list{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.list th{text-align:left; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--ink); padding:7px 8px;}
+  table.list td{padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  table.list tr.clickable{cursor:pointer;}
+  table.list tr.clickable:hover{background:#faf9f6;}
+  .empty{color:var(--muted); font-size:12.5px; padding:20px 0; text-align:center;}
+
+  .back-link{font-size:12.5px; color:var(--teal); cursor:pointer; font-weight:600; margin-bottom:14px; display:inline-block;}
+  .back-link:hover{text-decoration:underline;}
+
+  pre.fhir-out{background:var(--ink); color:#e8e8e8; padding:14px; font-size:11px; overflow-x:auto; margin-top:12px;}
+  .about-body p{margin:0 0 12px; font-size:13.5px; line-height:1.6;}
+  .about-body h3{font-family:'Lora',serif; font-size:14.5px; color:var(--teal-dark); margin:18px 0 8px;}
+  .about-body li{font-size:13.5px; margin-bottom:5px; line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="shell" id="app"></div>
+
+<script>
+/* ============================================================
+   RULE ENGINE + FHIR LAYER — unchanged from the verified MVP
+   ============================================================ */
+const GUIDELINE = "ADA Standards of Care in Diabetes—2025, Sec. 2: Classification & Diagnosis (screening thresholds); Sec. 3: Prevention/Delay of T2D";
+const LOINC = { HBA1C:"4548-4", FPG:"1558-6", BMI:"39156-5", SBP:"8480-6" };
+
+function num(v){ return v===""||v===null||v===undefined ? null : Number(v); }
+
+function calcAgeFromBirthDate(birthDateStr){
+  if(!birthDateStr) return null;
+  const bd = new Date(birthDateStr);
+  if(isNaN(bd.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - bd.getFullYear();
+  const m = now.getMonth() - bd.getMonth();
+  if(m < 0 || (m===0 && now.getDate() < bd.getDate())) age--;
+  return age;
+}
+function findObsValueByLoinc(entries, loincCode){
+  for(const e of entries){
+    const res = e.resource;
+    if(!res || res.resourceType !== "Observation") continue;
+    const codings = (res.code && res.code.coding) || [];
+    if(codings.some(c => c.code === loincCode)){
+      if(res.valueQuantity && typeof res.valueQuantity.value === "number") return res.valueQuantity.value;
+    }
+    if(res.component){
+      for(const comp of res.component){
+        const compCodings = (comp.code && comp.code.coding) || [];
+        if(compCodings.some(c => c.code === loincCode) && comp.valueQuantity) return comp.valueQuantity.value;
+      }
+    }
+  }
+  return null;
+}
+function mapFHIRBundleToRecord(bundle){
+  if(!bundle || bundle.resourceType !== "Bundle" || !Array.isArray(bundle.entry)){
+    throw new Error("Not a valid FHIR Bundle (expected resourceType: 'Bundle' with an entry array).");
+  }
+  const entries = bundle.entry;
+  const patientEntry = entries.find(e => e.resource && e.resource.resourceType === "Patient");
+  const famHistEntry = entries.find(e => e.resource && e.resource.resourceType === "FamilyMemberHistory");
+  const activityEntry = entries.find(e => e.resource && e.resource.resourceType === "Observation" &&
+    (e.resource.code && (e.resource.code.text || "").toLowerCase().includes("activity")));
+  const age = patientEntry ? calcAgeFromBirthDate(patientEntry.resource.birthDate) : null;
+  const patientName = patientEntry && patientEntry.resource.name && patientEntry.resource.name[0]
+    ? [patientEntry.resource.name[0].given ? patientEntry.resource.name[0].given.join(" ") : "", patientEntry.resource.name[0].family || ""].join(" ").trim() : "";
+  const patientId = patientEntry ? (patientEntry.resource.id || "") : "";
+  const patientGender = patientEntry && (patientEntry.resource.gender === "male" || patientEntry.resource.gender === "female") ? patientEntry.resource.gender : ""; // FHIR Patient.gender: only male/female are offered in this app's UI
+  const hba1c = findObsValueByLoinc(entries, LOINC.HBA1C);
+  const fpg = findObsValueByLoinc(entries, LOINC.FPG);
+  const bmi = findObsValueByLoinc(entries, LOINC.BMI);
+  const sbp = findObsValueByLoinc(entries, LOINC.SBP);
+  let famHist = "unknown";
+  if(famHistEntry){
+    const cond = (famHistEntry.resource.condition || []);
+    famHist = cond.some(c => ((c.code && c.code.text) || "").toLowerCase().includes("diabetes")) ? "yes" : "no";
+  }
+  let activity = "unknown";
+  if(activityEntry && activityEntry.resource.valueString) activity = activityEntry.resource.valueString.toLowerCase();
+  return {
+    patientId, patientName, patientGender,
+    age: age===null ? "" : age, bmi: bmi===null ? "" : bmi, fpg: fpg===null ? "" : fpg,
+    hba1c: hba1c===null ? "" : hba1c, sbp: sbp===null ? "" : sbp, famHist, activity
+  };
+}
+function buildFHIRRiskAssessment(record, assessment){
+  const now = new Date().toISOString();
+  return {
+    resourceType: "RiskAssessment", status: "final",
+    subject: { reference: record.patientId ? `Patient/${record.patientId}` : "Patient/unknown", display: record.patientName || undefined },
+    occurrenceDateTime: now,
+    basis: [
+      { display: `HbA1c (LOINC ${LOINC.HBA1C}): ${record.hba1c}%` },
+      { display: `FPG (LOINC ${LOINC.FPG}): ${record.fpg} mg/dL` },
+      { display: `BMI (LOINC ${LOINC.BMI}): ${record.bmi}` },
+      { display: `Systolic BP (LOINC ${LOINC.SBP}): ${record.sbp} mmHg` },
+    ],
+    prediction: [{ outcome: { text: assessment.label }, qualitativeRisk: { text: assessment.status } }],
+    note: [{ text: assessment.recommendation }, { text: `Guideline: ${assessment.guideline}` }]
+  };
+}
+
+function runAssessment(f){
+  const raw = {age:f.age, bmi:f.bmi, fpg:f.fpg, hba1c:f.hba1c, sbp:f.sbp};
+  const age = num(f.age), bmi = num(f.bmi), fpg = num(f.fpg), hba1c = num(f.hba1c), sbp = num(f.sbp);
+  const malformed = [];
+  [["age",age],["BMI",bmi],["fasting plasma glucose (FPG)",fpg],["HbA1c",hba1c],["systolic BP",sbp]].forEach(([label,val])=>{
+    if(val!==null && Number.isNaN(val)) malformed.push(label);
+  });
+  if(malformed.length){
+    return { status:"malformed-input", badge:"oos", label:"Malformed Input — Halted",
+      flags:[{type:"stop", text:`Non-numeric value(s) detected in: ${malformed.join(", ")}. The workflow halts rather than guessing — correct the source record and re-submit.`}],
+      dataUsed:{age:raw.age,bmi:raw.bmi,fpg:raw.fpg,hba1c:raw.hba1c,sbp:raw.sbp},
+      recommendation:"No recommendation generated — malformed input blocks processing.", guideline:GUIDELINE };
+  }
+  const missing = [];
+  if(age===null) missing.push("age"); if(bmi===null) missing.push("BMI");
+  if(fpg===null) missing.push("fasting plasma glucose (FPG)"); if(hba1c===null) missing.push("HbA1c");
+  if(missing.length){
+    return { status:"insufficient-data", badge:"oos", label:"Insufficient Data",
+      flags:[{type:"stop", text:`Cannot classify — missing: ${missing.join(", ")}. Route to lab for completion.`}],
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation:"No recommendation generated. Request the missing values and re-submit.", guideline:GUIDELINE };
+  }
+  if(age < 18){
+    return { status:"out-of-scope", badge:"oos", label:"Out of Scope (Pediatric)",
+      flags:[{type:"stop", text:"Patient is under 18. Pediatric screening uses separate ADA/ISPAD criteria not covered by this adult preventive module."}],
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation:"Route to pediatric care pathway.", guideline:GUIDELINE };
+  }
+  const fpgCat = fpg>=126 ? 2 : fpg>=100 ? 1 : 0;
+  const hbCat = hba1c>=6.5 ? 2 : hba1c>=5.7 ? 1 : 0;
+  if(Math.abs(fpgCat-hbCat)===2){
+    return { status:"contradictory", badge:"oos", label:"Contradictory Values",
+      flags:[{type:"stop", text:`FPG (${fpg} mg/dL) and HbA1c (${hba1c}%) point to different classification categories. Requires clinician review and confirmatory testing.`}],
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation:"No automated recommendation. Flag for confirmatory lab testing.", guideline:GUIDELINE };
+  }
+  if(fpgCat===2 || hbCat===2){
+    return { status:"out-of-scope-diabetic", badge:"oos", label:"Out of Scope — Diagnostic Range",
+      flags:[{type:"stop", text:"Values fall in the diabetes diagnostic range (FPG ≥126 mg/dL or HbA1c ≥6.5%). Outside this preventive module's scope."}],
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation:"Route to clinical diagnosis/management pathway.", guideline:GUIDELINE };
+  }
+  let riskPoints = 0; const flags = [];
+  if(bmi>=25){ riskPoints++; flags.push({type:"warn", text:`BMI ${bmi} is ≥25 (overweight/obese threshold).`}); }
+  if(f.famHist==="yes"){ riskPoints++; flags.push({type:"warn", text:"First-degree family history of diabetes present."}); }
+  if(age>=35){ riskPoints++; flags.push({type:"warn", text:`Age ${age} meets ADA average-risk screening threshold (≥35, lowered from ≥45 in the 2022 revision).`}); }
+  if(f.activity==="sedentary"){ riskPoints++; flags.push({type:"warn", text:"Reported sedentary activity level."}); }
+  if(sbp!==null && sbp>=130){ riskPoints++; flags.push({type:"warn", text:`Systolic BP ${sbp} mmHg ≥130 (comorbid risk factor).`}); }
+  if(hbCat===1 || fpgCat===1){
+    const level = riskPoints>=3 ? "high" : "mod";
+    return { status:"prediabetes", badge:level, label: level==="high" ? "High Risk — Prediabetes" : "Moderate Risk — Prediabetes",
+      flags: flags.length? flags : [{type:"warn", text:"Prediabetes-range values with no additional major risk factors identified."}],
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation: level==="high"
+        ? "Prediabetes range with multiple compounding risk factors. Recommend referral to a structured lifestyle-change program (e.g., National DPP-model), reassessment of HbA1c/FPG in 3–6 months, and discussion of metformin per ADA criteria if risk remains elevated."
+        : "Prediabetes range. Recommend lifestyle counseling (weight management, physical activity), reassessment of HbA1c/FPG in 6–12 months.", guideline:GUIDELINE };
+  }
+  if(riskPoints>=2){
+    flags.push({type:"warn", text:"Values currently normal, but risk-factor profile meets ADA criteria for earlier/more frequent screening."});
+    return { status:"normal-atrisk", badge:"mod", label:"Normal Values — Screen Earlier", flags,
+      dataUsed:{age,bmi,fpg,hba1c,sbp},
+      recommendation:"Current labs are normal. Given risk-factor burden, recommend rescreening in 12 months rather than the standard 3-year interval.", guideline:GUIDELINE };
+  }
+  return { status:"low-risk", badge:"low", label:"Low Risk",
+    flags:[{type:"ok", text:"No major risk factors identified alongside normal-range labs."}],
+    dataUsed:{age,bmi,fpg,hba1c,sbp},
+    recommendation:"No prediabetes indication. Recommend routine rescreening per standard interval (every 3 years, or sooner if risk factors change).", guideline:GUIDELINE };
+}
+
+function draftPatientMessage(a, note, patientName, physicianName){
+  const who = patientName ? patientName : "there";
+  const doc = physicianName ? physicianName : "your care team";
+  const base = note && note.trim() ? note.trim() : a.recommendation;
+  return `Hi ${who} — your results have been reviewed by ${doc}. ${base} Approved per ${a.guideline.split(',')[0]}.`;
+}
+
+/* ============================================================
+   APPLICATION STATE
+   ============================================================ */
+let state = {
+  view: "dashboard",
+  cases: [],
+  activeCaseUid: null,
+  _showFhir: null,
+  form: {age:"",bmi:"",famHist:"no",fpg:"",hba1c:"",sbp:"",activity:"moderate"},
+  patientId: "PT-" + Math.floor(1000+Math.random()*9000),
+  patientName: "",
+  patientEmail: "", patientPhone: "", patientGender: "",
+  physicianName: "", physicianId: "",
+  fhirInput: "", fhirImportError: "",
+  n8nWebhookUrl: (typeof localStorage !== "undefined" && localStorage.getItem('preventai:n8nWebhookUrl')) || "",
+  n8nTestStatus: "",
+};
+
+async function loadCases(){
+  try{
+    const raw = localStorage.getItem('preventai:cases');
+    if(raw) state.cases = JSON.parse(raw);
+  }catch(e){ state.cases = []; }
+  render();
+}
+async function saveCases(){
+  try{ localStorage.setItem('preventai:cases', JSON.stringify(state.cases)); }
+  catch(e){ console.error('save failed', e); }
+}
+
+function nav(view){ state.view = view; render(); }
+function newUid(){ return "C-" + Date.now().toString(36) + Math.floor(Math.random()*1000); }
+
+function setForm(k,v){ state.form[k]=v; }
+
+function saveN8nUrl(url){
+  state.n8nWebhookUrl = url.trim();
+  try{ localStorage.setItem('preventai:n8nWebhookUrl', state.n8nWebhookUrl); }catch(e){}
+}
+
+async function notifyN8n(eventType, c){
+  if(!state.n8nWebhookUrl) return; // no endpoint configured, silently skip
+  const payload = {
+    eventType, patientId: c.patientId, patientName: c.patientName, patientGender: c.patientGender,
+    patientEmail: c.patientEmail || null, patientPhone: c.patientPhone || null,
+    assessment: c.assessment, physicianName: c.physicianName, physicianId: c.physicianId,
+    physicianDecision: c.decision, physicianNote: c.reviewNote,
+    finalMessage: c.finalMessage || null,           // set only once approved — null on rejection/creation
+    dispatchRequested: eventType === "physician_decision" && c.decision === "approved"
+  };
+  try{
+    const res = await fetch(state.n8nWebhookUrl, {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(payload)
+    });
+    const ok = res.ok;
+    c.dispatchLog = c.dispatchLog || [];
+    c.dispatchLog.push({ channel: "n8n", target: state.n8nWebhookUrl, ts: new Date().toISOString(), status: ok ? "sent" : `error (${res.status})` });
+  }catch(e){
+    c.dispatchLog = c.dispatchLog || [];
+    c.dispatchLog.push({ channel: "n8n", target: state.n8nWebhookUrl, ts: new Date().toISOString(), status: "error (" + e.message + ")" });
+  }
+  saveCases();
+  render();
+}
+
+async function testN8nConnection(){
+  if(!state.n8nWebhookUrl){ state.n8nTestStatus = "Enter a webhook URL first."; render(); return; }
+  state.n8nTestStatus = "Testing...";
+  render();
+  try{
+    const res = await fetch(state.n8nWebhookUrl, {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ eventType: "connection_test", patientId: "TEST-PING" })
+    });
+    state.n8nTestStatus = res.ok ? "✓ Connected — n8n responded successfully." : `Reached the URL, but n8n returned an error (status ${res.status}). Check the workflow is Active.`;
+  }catch(e){
+    state.n8nTestStatus = "✗ Could not reach that URL: " + e.message + " — check the address and that the workflow is Active.";
+  }
+  render();
+}
+
+function runNewAssessment(){
+  const assessment = runAssessment(state.form);
+  const uid = newUid();
+  const c = {
+    uid, patientId: state.patientId, patientName: state.patientName,
+    patientEmail: state.patientEmail, patientPhone: state.patientPhone, patientGender: state.patientGender,
+    form: {...state.form}, assessment,
+    physicianName: state.physicianName, physicianId: state.physicianId,
+    decision: null, reviewNote: "", finalMessage: null, internalNote: null,
+    dispatchLog: [],
+    createdAt: new Date().toISOString()
+  };
+  state.cases = [c, ...state.cases];
+  saveCases();
+  notifyN8n("case_created", c);
+  state.form = {age:"",bmi:"",famHist:"no",fpg:"",hba1c:"",sbp:"",activity:"moderate"};
+  state.patientId = "PT-" + Math.floor(1000+Math.random()*9000);
+  state.patientName = ""; state.patientEmail = ""; state.patientPhone = ""; state.patientGender = "";
+  state.physicianName = ""; state.physicianId = "";
+  state.activeCaseUid = uid;
+  state.view = "case";
+  render();
+}
+
+function openCase(uid){ state.activeCaseUid = uid; state.view = "case"; render(); }
+
+function decideCase(uid, decision){
+  const c = state.cases.find(x => x.uid === uid);
+  if(!c) return;
+  c.decision = decision;
+  if(decision === "approved"){
+    c.finalMessage = draftPatientMessage(c.assessment, c.reviewNote, c.patientName, c.physicianName);
+    c.internalNote = null;
+  } else {
+    c.finalMessage = null;
+    c.internalNote = `Assessment reviewed by ${c.physicianName || "physician"}: Rejected for further clinical action${c.reviewNote ? " (" + c.reviewNote + ")" : ""}.`;
+  }
+  saveCases();
+  notifyN8n("physician_decision", c);
+  render();
+}
+
+// Dispatch: opens the reviewing physician/staff's own email or messaging app, pre-filled
+// with the approved patient message. No backend/API keys involved, so the actual send is
+// still a deliberate human action — consistent with this app's HITL model applying to
+// dispatch, not just classification. Every dispatch attempt is logged for audit purposes,
+// whether or not the user actually completes the send in their own app afterward.
+function logDispatch(uid, channel, target){
+  const c = state.cases.find(x => x.uid === uid);
+  if(!c) return;
+  if(!c.dispatchLog) c.dispatchLog = [];
+  c.dispatchLog.push({ channel, target: target || "(not provided)", ts: new Date().toISOString() });
+  saveCases();
+  render();
+}
+function dispatchViaEmail(uid){
+  const c = state.cases.find(x => x.uid === uid);
+  if(!c || !c.finalMessage) return;
+  const subject = encodeURIComponent(`Your recent health screening results — ${c.patientName || c.patientId}`);
+  const body = encodeURIComponent(c.finalMessage);
+  logDispatch(uid, "email", c.patientEmail);
+  window.location.href = `mailto:${c.patientEmail || ""}?subject=${subject}&body=${body}`;
+}
+function dispatchViaSms(uid){
+  const c = state.cases.find(x => x.uid === uid);
+  if(!c || !c.finalMessage) return;
+  const body = encodeURIComponent(c.finalMessage);
+  logDispatch(uid, "sms", c.patientPhone);
+  window.location.href = `sms:${c.patientPhone || ""}?&body=${body}`;
+}
+
+function importFhirBundle(){
+  try{
+    const bundle = JSON.parse(state.fhirInput);
+    const record = mapFHIRBundleToRecord(bundle);
+    state.form = {age:record.age, bmi:record.bmi, fpg:record.fpg, hba1c:record.hba1c, sbp:record.sbp, famHist:record.famHist, activity:record.activity};
+    state.patientId = record.patientId || state.patientId;
+    state.patientName = record.patientName || "";
+    state.patientGender = record.patientGender || "";
+    state.fhirImportError = "";
+    nav("new");
+  }catch(e){
+    state.fhirImportError = "Import failed: " + e.message;
+    render();
+  }
+}
+
+function fieldRow(label,key,type="text",step="0.1"){
+  return `<div class="field"><label>${label}</label>
+    <input type="${type}" step="${step}" value="${state.form[key]}" oninput="setForm('${key}', this.value)"/>
+  </div>`;
+}
+function statusBadge(c){
+  if(!c.decision) return `<span class="badge pending">Pending Review</span>`;
+  return `<span class="badge ${c.assessment.badge}">${c.assessment.label}</span>`;
+}
+function computeStats(){
+  const total = state.cases.length;
+  const pending = state.cases.filter(c => !c.decision).length;
+  const approved = state.cases.filter(c => c.decision === "approved").length;
+  const rejectedOrBlocked = state.cases.filter(c => c.decision === "rejected" ||
+    ["insufficient-data","malformed-input","contradictory","out-of-scope","out-of-scope-diabetic"].includes(c.assessment.status)).length;
+  return { total, pending, approved, rejectedOrBlocked };
+}
+
+function renderSidebar(){
+  const stats = computeStats();
+  const items = [
+    ["dashboard","Dashboard", null],
+    ["new","New Assessment", null],
+    ["queue","Review Queue", stats.pending],
+    ["audit","Audit Log", state.cases.length],
+    ["fhir","FHIR Import", null],
+    ["integrations","Integrations", null],
+    ["about","About PreventAI", null],
+  ];
+  return `
+    <div class="sidebar">
+      <div class="brand">PreventAI</div>
+      <div class="brand-sub">Diabetes CDS · Capstone MVP</div>
+      ${items.map(([key,label,count])=>`
+        <div class="nav-item ${state.view===key?'active':''}" onclick="nav('${key}')">
+          <span>${label}</span>
+          ${count!==null ? `<span class="badge-count">${count}</span>` : ""}
+        </div>`).join("")}
+      <div class="sidebar-foot">
+        Rule-based CDS · ADA 2025<br/>
+        HITL mandatory · FHIR R4 enabled<br/>
+        Not a diagnostic device.
+      </div>
+    </div>`;
+}
+
+function renderDashboard(){
+  const stats = computeStats();
+  const recent = state.cases.slice(0,6);
+  return `
+    <div class="page-head"><h1>Dashboard</h1><div class="sub">Overview of all patient cases run through PreventAI this session.</div></div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="num">${stats.total}</div><div class="lbl">Total Cases</div></div>
+      <div class="stat-card amber"><div class="num">${stats.pending}</div><div class="lbl">Pending Physician Review</div></div>
+      <div class="stat-card sage"><div class="num">${stats.approved}</div><div class="lbl">Approved</div></div>
+      <div class="stat-card red"><div class="num">${stats.rejectedOrBlocked}</div><div class="lbl">Rejected / Blocked</div></div>
+    </div>
+    <div class="panel">
+      <h2>Recent Activity</h2>
+      <div class="sub">Most recently run cases, newest first.</div>
+      ${recent.length ? `
+      <table class="list">
+        <thead><tr><th>Patient</th><th>Status</th><th>Decision</th><th>Time</th></tr></thead>
+        <tbody>${recent.map(c=>`
+          <tr class="clickable" onclick="openCase('${c.uid}')">
+            <td>${c.patientId}${c.patientName?' · '+c.patientName:''}</td>
+            <td>${statusBadge(c)}</td>
+            <td>${c.decision || '—'}</td>
+            <td>${new Date(c.createdAt).toLocaleTimeString()}</td>
+          </tr>`).join("")}</tbody>
+      </table>` : `<div class="empty">No cases run yet. Start a New Assessment or import a FHIR Bundle.</div>`}
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="nav('new')">+ New Assessment</button>
+      <button class="ghost" onclick="nav('fhir')">Import FHIR Bundle</button>
+    </div>`;
+}
+
+function renderNew(){
+  const f = state.form;
+  return `
+    <div class="page-head"><h1>New Assessment</h1><div class="sub">Enter patient data, or import a FHIR Bundle from the LIS, then run the AI risk assessment.</div></div>
+    <div class="panel">
+      <div class="grid">
+        <div class="field"><label>Patient ID</label><input type="text" value="${state.patientId}" oninput="state.patientId=this.value"/></div>
+        <div class="field"><label>Patient Name (optional)</label><input type="text" value="${state.patientName}" oninput="state.patientName=this.value"/></div>
+        <div class="field"><label>Gender</label>
+          <select onchange="state.patientGender=this.value">
+            <option value="" ${state.patientGender===''?'selected':''}>Select gender</option>
+            <option value="female" ${state.patientGender==='female'?'selected':''}>Female</option>
+            <option value="male" ${state.patientGender==='male'?'selected':''}>Male</option>
+          </select>
+        </div>
+        <div class="field"><label>Patient Email (for message delivery)</label><input type="email" value="${state.patientEmail}" oninput="state.patientEmail=this.value" placeholder="patient@example.com"/></div>
+        <div class="field"><label>Patient Phone (for SMS delivery)</label><input type="tel" value="${state.patientPhone}" oninput="state.patientPhone=this.value" placeholder="+20 1XX XXX XXXX"/></div>
+        <div class="field"><label>Age (years)</label><input type="text" value="${f.age}" oninput="setForm('age', this.value)"/></div>
+        <div class="field"><label>BMI (kg/m²)</label><input type="text" value="${f.bmi}" oninput="setForm('bmi', this.value)"/></div>
+        <div class="field"><label>Family History of T2D</label>
+          <select onchange="setForm('famHist', this.value)">
+            <option value="no" ${f.famHist==='no'?'selected':''}>No</option>
+            <option value="yes" ${f.famHist==='yes'?'selected':''}>Yes (first-degree)</option>
+            <option value="unknown" ${f.famHist==='unknown'?'selected':''}>Unknown</option>
+          </select>
+        </div>
+        <div class="field"><label>Fasting Plasma Glucose (mg/dL)</label><input type="text" value="${f.fpg}" oninput="setForm('fpg', this.value)"/></div>
+        <div class="field"><label>HbA1c (%)</label><input type="text" value="${f.hba1c}" oninput="setForm('hba1c', this.value)"/></div>
+        <div class="field"><label>Systolic BP (mmHg)</label><input type="text" value="${f.sbp}" oninput="setForm('sbp', this.value)"/></div>
+        <div class="field"><label>Physical Activity</label>
+          <select onchange="setForm('activity', this.value)">
+            <option value="active" ${f.activity==='active'?'selected':''}>Active</option>
+            <option value="moderate" ${f.activity==='moderate'?'selected':''}>Moderate</option>
+            <option value="sedentary" ${f.activity==='sedentary'?'selected':''}>Sedentary</option>
+            <option value="unknown" ${f.activity==='unknown'?'selected':''}>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions"><button class="primary" onclick="runNewAssessment()">Run AI Risk Assessment →</button></div>
+    </div>`;
+}
+
+function renderQueue(){
+  const cases = state.cases;
+  return `
+    <div class="page-head"><h1>Review Queue</h1><div class="sub">Every case run through the assessment engine — click one to review or re-open it.</div></div>
+    <div class="panel">
+      ${cases.length ? `
+      <table class="list">
+        <thead><tr><th>Patient ID</th><th>Gender</th><th>AI Output</th><th>Status</th><th>Physician</th><th>Time</th></tr></thead>
+        <tbody>${cases.map(c=>`
+          <tr class="clickable" onclick="openCase('${c.uid}')">
+            <td>${c.patientId}${c.patientName?' · '+c.patientName:''}</td>
+            <td>${c.patientGender ? c.patientGender.charAt(0).toUpperCase()+c.patientGender.slice(1) : '—'}</td>
+            <td>${c.assessment.label}</td>
+            <td>${statusBadge(c)}</td>
+            <td>${c.physicianName || '—'}</td>
+            <td>${new Date(c.createdAt).toLocaleString()}</td>
+          </tr>`).join("")}</tbody>
+      </table>` : `<div class="empty">No cases yet.</div>`}
+    </div>`;
+}
+
+function renderCase(){
+  const c = state.cases.find(x => x.uid === state.activeCaseUid);
+  if(!c) return `<div class="panel"><div class="empty">Case not found.</div></div>`;
+  const a = c.assessment;
+  return `
+    <span class="back-link" onclick="nav('queue')">← Back to Review Queue</span>
+    <div class="page-head"><h1>${c.patientName || c.patientId}</h1><div class="sub">Case ${c.patientId} · ${c.patientGender ? c.patientGender.charAt(0).toUpperCase()+c.patientGender.slice(1)+' · ' : ''}opened ${new Date(c.createdAt).toLocaleString()}</div></div>
+
+    <div class="panel">
+      <h2>AI Risk Assessment</h2>
+      <div style="margin-bottom:12px;"><span class="badge ${a.badge}">${a.label}</span></div>
+      ${a.flags.map(fl=>`<div class="flag ${fl.type}">${fl.text}</div>`).join("")}
+      <div class="data-used">
+        <div>Age<span>${a.dataUsed.age ?? '—'}</span></div>
+        <div>BMI<span>${a.dataUsed.bmi ?? '—'}</span></div>
+        <div>FPG<span>${a.dataUsed.fpg ?? '—'} mg/dL</span></div>
+        <div>HbA1c<span>${a.dataUsed.hba1c ?? '—'}%</span></div>
+      </div>
+      <p style="font-size:13.5px; margin:12px 0;"><b>Recommendation:</b> ${a.recommendation}</p>
+      <div class="prov"><b>Guideline:</b> ${a.guideline}</div>
+      <button class="ghost" onclick="state._showFhir=(state._showFhir==='${c.uid}'?null:'${c.uid}'); render();">
+        ${state._showFhir===c.uid ? "Hide" : "View"} as FHIR RiskAssessment
+      </button>
+      ${state._showFhir===c.uid ? `<pre class="fhir-out">${JSON.stringify(buildFHIRRiskAssessment({patientId:c.patientId, patientName:c.patientName, ...a.dataUsed}, a), null, 2)}</pre>` : ""}
+    </div>
+
+    <div class="panel">
+      <h2>Physician Review</h2>
+      <div class="sub">Nothing reaches the patient until approved here.</div>
+      <div class="grid" style="margin-bottom:14px;">
+        <div class="field"><label>Physician Name</label><input type="text" value="${c.physicianName}" oninput="state.cases.find(x=>x.uid==='${c.uid}').physicianName=this.value"/></div>
+        <div class="field"><label>Physician ID</label><input type="text" value="${c.physicianId}" oninput="state.cases.find(x=>x.uid==='${c.uid}').physicianId=this.value"/></div>
+        <div class="field"><label>Patient Gender</label>
+          <select onchange="state.cases.find(x=>x.uid==='${c.uid}').patientGender=this.value">
+            <option value="" ${(!c.patientGender)?'selected':''}>Select gender</option>
+            <option value="female" ${c.patientGender==='female'?'selected':''}>Female</option>
+            <option value="male" ${c.patientGender==='male'?'selected':''}>Male</option>
+          </select>
+        </div>
+        <div class="field"><label>Patient Email</label><input type="email" value="${c.patientEmail||''}" oninput="state.cases.find(x=>x.uid==='${c.uid}').patientEmail=this.value"/></div>
+        <div class="field"><label>Patient Phone</label><input type="tel" value="${c.patientPhone||''}" oninput="state.cases.find(x=>x.uid==='${c.uid}').patientPhone=this.value"/></div>
+      </div>
+      <label style="display:block; font-size:11.5px; color:var(--muted); margin-bottom:6px; text-transform:uppercase;">Physician note</label>
+      <textarea placeholder="Add or edit clinical guidance..." oninput="state.cases.find(x=>x.uid==='${c.uid}').reviewNote=this.value">${c.reviewNote}</textarea>
+      ${!c.decision ? `
+      <div class="actions">
+        <button class="approve" onclick="decideCase('${c.uid}','approved')">Approve →</button>
+        <button class="reject" onclick="decideCase('${c.uid}','rejected')">Reject</button>
+      </div>` : ""}
+      ${c.decision==="approved" ? `<div style="margin-top:16px;">
+        <div class="sub" style="margin-bottom:8px;">Patient-facing message</div>
+        <div class="msg-approved">${c.finalMessage}</div>
+        <div class="actions" style="margin-top:12px;">
+          <button class="primary" onclick="dispatchViaEmail('${c.uid}')">Send via Email${c.patientEmail ? '' : ' (no address on file)'}</button>
+          <button class="primary" onclick="dispatchViaSms('${c.uid}')">Send via SMS${c.patientPhone ? '' : ' (no number on file)'}</button>
+        </div>
+        <div class="sub" style="margin-top:8px; font-size:11px;">Opens your own email/messaging app pre-filled with this message — you still send it from there. Nothing is transmitted automatically.</div>
+        ${(c.dispatchLog && c.dispatchLog.length) ? `
+          <div class="prov" style="margin-top:10px;">
+            <b>Dispatch log:</b><br/>
+            ${c.dispatchLog.map(d=>`${new Date(d.ts).toLocaleString()} — opened ${d.channel} to ${d.target}`).join("<br/>")}
+          </div>` : ""}
+      </div>` : ""}
+      ${c.decision==="rejected" ? `<div class="flag stop" style="margin-top:14px;">${c.internalNote} Internal/audit-only — no patient message generated.</div>` : ""}
+    </div>`;
+}
+
+function renderAudit(){
+  const cases = state.cases;
+  return `
+    <div class="page-head"><h1>Audit Log</h1><div class="sub">Immutable record schema: input snapshot, AI status, physician decision, timestamp.</div></div>
+    <div class="panel">
+      ${cases.length ? `
+      <table class="list">
+        <thead><tr><th>Time</th><th>Patient</th><th>Gender</th><th>AI Status</th><th>AI Output</th><th>Physician</th><th>Decision</th><th>Note</th><th>Msg Sent</th></tr></thead>
+        <tbody>${cases.map(c=>`
+          <tr>
+            <td>${new Date(c.createdAt).toLocaleString()}</td>
+            <td>${c.patientId}${c.patientName?' · '+c.patientName:''}</td>
+            <td>${c.patientGender ? c.patientGender.charAt(0).toUpperCase()+c.patientGender.slice(1) : '—'}</td>
+            <td>${c.assessment.status}</td>
+            <td>${c.assessment.label}</td>
+            <td>${c.physicianName || '—'}</td>
+            <td>${c.decision || 'pending'}</td>
+            <td>${c.reviewNote || '(none)'}</td>
+            <td>${c.decision==='approved' ? 'yes' : 'no'}</td>
+          </tr>`).join("")}</tbody>
+      </table>` : `<div class="empty">No audit entries yet.</div>`}
+    </div>`;
+}
+
+function renderFhir(){
+  return `
+    <div class="page-head"><h1>FHIR Bundle Import</h1><div class="sub">Paste a FHIR R4 Bundle from the LIS/LDM to auto-fill a new assessment.</div></div>
+    <div class="panel">
+      <p style="font-size:13px; color:var(--muted); margin-top:0;">Maps: Patient.birthDate → age · Observation (LOINC ${LOINC.HBA1C}) → HbA1c · Observation (LOINC ${LOINC.FPG}) → FPG · Observation (LOINC ${LOINC.BMI}) → BMI · Observation.component (LOINC ${LOINC.SBP}) → Systolic BP · FamilyMemberHistory → family history.</p>
+      <textarea style="min-height:220px; font-family:'IBM Plex Mono',monospace; font-size:11.5px;" placeholder="Paste a FHIR Bundle JSON here..." oninput="state.fhirInput=this.value">${state.fhirInput}</textarea>
+      ${state.fhirImportError ? `<div class="flag stop" style="margin-top:10px;">${state.fhirImportError}</div>` : ""}
+      <div class="actions">
+        <button class="primary" onclick="importFhirBundle()">Import → New Assessment</button>
+      </div>
+    </div>`;
+}
+
+function renderIntegrations(){
+  return `
+    <div class="page-head"><h1>Integrations</h1><div class="sub">Connect this app to your n8n workflow so real events (a new case, a physician decision) actually trigger it.</div></div>
+    <div class="panel">
+      <h2>n8n Webhook URL</h2>
+      <div class="sub">Paste your n8n workflow's Webhook node Production URL here. Once set, every new assessment and every physician approval/rejection will POST the case data to it automatically.</div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Webhook URL</label>
+        <input type="text" value="${state.n8nWebhookUrl}" oninput="saveN8nUrl(this.value)" placeholder="https://your-instance.app.n8n.cloud/webhook/preventai/case-event"/>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="testN8nConnection()">Test Connection</button>
+      </div>
+      ${state.n8nTestStatus ? `<div class="flag ${state.n8nTestStatus.startsWith('✓') ? 'ok' : state.n8nTestStatus.startsWith('✗') ? 'stop' : 'warn'}" style="margin-top:12px;">${state.n8nTestStatus}</div>` : ""}
+      <div class="prov" style="margin-top:16px;">
+        <b>What gets sent:</b> eventType ("case_created" or "physician_decision"), patientId, patientName, patientGender, patientEmail, patientPhone, the full AI assessment (status, label, recommendation, guideline), the physician's name/ID/decision/note, and — once approved — the finalMessage text plus a dispatchRequested flag so your n8n workflow knows exactly when to actually send.
+      </div>
+      <div class="prov" style="margin-top:10px;">
+        <b>Setup on the n8n side:</b> your workflow needs a Webhook node (not a Manual Trigger) as its entry point — Manual Trigger workflows can only be started by clicking "Execute workflow" inside n8n itself, they can't receive calls from outside. The workflow must also be turned <b>Active</b> (toggle, top-right of the n8n editor) for its Production URL to work — the Test URL only fires once, the next time you click "Execute workflow" in the editor.
+      </div>
+    </div>`;
+}
+
+function renderAbout(){
+  return `
+    <div class="page-head"><h1>About PreventAI</h1><div class="sub">What the AI component does, and what it deliberately does not do.</div></div>
+    <div class="panel about-body">
+      <p>PreventAI is a deterministic, rule-based clinical decision-support (CDS) classifier for Type 2 Diabetes preventive risk stratification — not a trained machine-learning model. It takes structured patient data (directly, or mapped from a FHIR R4 Bundle) and returns a risk classification, a plain-language recommendation, and the exact ADA guideline citation behind it.</p>
+      <h3>Clinical Grounding</h3>
+      <ul>
+        <li>Diabetic range: HbA1c ≥6.5% or FPG ≥126 mg/dL</li>
+        <li>Prediabetes: HbA1c 5.7–6.4% or FPG 100–125 mg/dL</li>
+        <li>Average-risk screening begins at age ≥35 (ADA lowered this from 45 in a 2022 revision)</li>
+      </ul>
+      <h3>Safety Behaviors</h3>
+      <ul>
+        <li>Malformed input halts processing immediately rather than guessing</li>
+        <li>Missing required fields halt and route to the lab</li>
+        <li>Patients under 18 are routed out of scope</li>
+        <li>Contradictory FPG/HbA1c values block automated output and route to clinician review</li>
+        <li>Patients already in the diagnostic range are routed out of scope — this is a prevention tool, not a diagnosis tool</li>
+      </ul>
+      <h3>Governance</h3>
+      <p>Every output is routed to a physician for approval or rejection (Human-in-the-Loop). No patient-facing message is generated until approved, and every decision on every case is written to the Audit Log.</p>
+      <h3>Interoperability</h3>
+      <p>Accepts FHIR R4 Bundles (Patient, Observation coded with verified LOINC terms, FamilyMemberHistory) and returns a FHIR RiskAssessment resource, so a LIS/EHR can store the output natively.</p>
+    </div>`;
+}
+
+function render(){
+  let page = "";
+  if(state.view==="dashboard") page = renderDashboard();
+  else if(state.view==="new") page = renderNew();
+  else if(state.view==="queue") page = renderQueue();
+  else if(state.view==="case") page = renderCase();
+  else if(state.view==="audit") page = renderAudit();
+  else if(state.view==="fhir") page = renderFhir();
+  else if(state.view==="integrations") page = renderIntegrations();
+  else if(state.view==="about") page = renderAbout();
+
+  document.getElementById('app').innerHTML = `
+    ${renderSidebar()}
+    <div class="main">${page}</div>
+  `;
+}
+
+loadCases();
+</script>
+</body>
+</html>
